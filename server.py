@@ -36,6 +36,7 @@ import base64
 import json
 import os
 import pathlib
+import shlex
 import shutil
 import socket
 import subprocess
@@ -51,6 +52,8 @@ PROJECT = pathlib.Path(
 ).resolve()
 PORT = int(os.environ.get("GODOT_MCP_PORT", "7777"))
 NOTES = os.environ.get("GODOT_MCP_NOTES", "")
+HEADLESS_DEFAULT = os.environ.get("GODOT_MCP_HEADLESS", "") not in ("", "0", "false")
+EXTRA_ARGS = shlex.split(os.environ.get("GODOT_MCP_EXTRA_ARGS", ""))
 GODOT_LOG = os.path.join(tempfile.gettempdir(), "godot_mcp", "godot_%d.log" % PORT)
 
 
@@ -161,9 +164,18 @@ TOOLS = [
     },
     {
         "name": "launch_game",
-        "description": "Launch the game windowed (no-op if already running). Other tools do this "
-        "automatically; use this to warm it up explicitly.",
-        "inputSchema": {"type": "object", "properties": {}},
+        "description": "Launch the game (no-op if already running; quit_game first to switch "
+        "mode). Other tools launch automatically (windowed by default); use this to launch "
+        "explicitly. headless=true runs without a window: screenshots are unavailable, but "
+        "combined with fast_sim=true the simulation runs as fast as the CPU allows instead of "
+        "real-time 60fps — ideal for long soaks and big test batteries.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "headless": {"type": "boolean", "description": "Run without a window (no screenshots)."},
+                "fast_sim": {"type": "boolean", "description": "Fixed 60fps deltas decoupled from real time (runs as fast as possible). Implies deterministic frame pacing."},
+            },
+        },
     },
     {
         "name": "quit_game",
@@ -205,7 +217,7 @@ def _handshake():
         )
 
 
-def ensure_game():
+def ensure_game(headless=None, fast_sim=False):
     global _sock
     if _sock is not None:
         return "already running"
@@ -219,8 +231,15 @@ def ensure_game():
         _sock = None
     os.makedirs(os.path.dirname(GODOT_LOG), exist_ok=True)
     logf = open(GODOT_LOG, "ab")
+    cmd = [godot_bin(), "--path", str(PROJECT)]
+    if HEADLESS_DEFAULT if headless is None else headless:
+        cmd.append("--headless")
+    if fast_sim:
+        cmd += ["--fixed-fps", "60"]
+    cmd += EXTRA_ARGS
+    cmd += ["-s", str(BRIDGE_SCRIPT)]
     subprocess.Popen(
-        [godot_bin(), "--path", str(PROJECT), "-s", str(BRIDGE_SCRIPT)],
+        cmd,
         stdout=logf, stderr=logf, start_new_session=True, env=os.environ.copy(),
     )
     deadline = time.time() + 25
@@ -293,8 +312,8 @@ def tool_reset_level(_args):
     return [text("level reset; player: " + json.dumps(res.get("player")))]
 
 
-def tool_launch_game(_args):
-    return [text(ensure_game())]
+def tool_launch_game(args):
+    return [text(ensure_game(headless=args.get("headless"), fast_sim=bool(args.get("fast_sim"))))]
 
 
 def tool_quit_game(_args):

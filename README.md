@@ -79,8 +79,14 @@ scene, then runs a bridge node that executes step batches in
 
 ## Notes & caveats
 
-- The game runs **windowed** (screenshots need a render target; headless would
-  break them). You can watch Claude play.
+- The game runs **windowed by default** (screenshots need a render target),
+  so you can watch Claude play. `launch_game` with `headless: true` runs
+  without a window — telemetry/eval/watches work, screenshots don't — and
+  adding `fast_sim: true` decouples the simulation from real time (~4x+
+  speedup; scales with scene weight). Use headless+fast_sim for big
+  regression batteries, soaks, and CI; use windowed for discovery and
+  anything visual. `GODOT_MCP_HEADLESS=1` makes headless the default;
+  `GODOT_MCP_EXTRA_ARGS` passes arbitrary extra Godot flags.
 - In 2D, a follow-camera is attached to the player unless the game already has
   a current camera. Screenshots are the previous rendered frame (~16 ms stale).
 - The server verifies the project identity of whatever is on the port, so two
