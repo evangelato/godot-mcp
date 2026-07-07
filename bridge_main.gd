@@ -492,6 +492,9 @@ class Bridge:
 		if DisplayServer.get_name() == "headless":
 			_events.append({"t": t, "event": "error", "detail": "screenshots need a window (running headless)"})
 			return
+		# macOS pauses rendering for occluded windows, which would freeze every
+		# capture at the last drawn frame; force a fresh draw before grabbing.
+		RenderingServer.force_draw(false)
 		var path := shots_dir.path_join(shot_name.validate_filename() + ".png")
 		get_viewport().get_texture().get_image().save_png(path)
 		_shots.append(path)
