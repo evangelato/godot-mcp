@@ -6,9 +6,13 @@ query and mutate the scene. Works with any Godot 4 project with **zero files
 installed into the game** — the in-game half is injected at launch via Godot's
 `-s` script flag.
 
-No dependencies: Python stdlib + your Godot binary.
+No Python dependencies: stdlib + your Godot binary.
 
 ## Setup (per game project)
+
+Requires [uv](https://docs.astral.sh/uv/) (`brew install uv`, or
+`curl -LsSf https://astral.sh/uv/install.sh | sh`). No clone needed: `uvx`
+fetches and runs the server straight from GitHub.
 
 Add `.mcp.json` at the game project root:
 
@@ -16,8 +20,8 @@ Add `.mcp.json` at the game project root:
 {
   "mcpServers": {
     "godot": {
-      "command": "python3",
-      "args": ["/Users/evan/Coding/godot-mcp/server.py"],
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/evangelato/godot-mcp", "godot-mcp"],
       "env": {
         "GODOT_MCP_NOTES": "Controls: ui_left/ui_right move, ui_accept jumps. ..."
       }
@@ -31,6 +35,15 @@ tool description, so a fresh Claude session knows the game's controls and
 useful watch expressions without reading the source.
 
 Approve the server on the next Claude Code session in that project. Done.
+
+To pin a version, append a tag or commit: `git+https://github.com/evangelato/godot-mcp@v1.0.0`.
+uv caches the download. To pick up new commits, add `"--refresh"` as the first
+arg (re-checks GitHub on every start), or run
+`uvx --refresh --from git+https://github.com/evangelato/godot-mcp godot-mcp` once by hand.
+
+**Hacking on godot-mcp itself?** Point the config at your local clone instead:
+`"args": ["--from", "/path/to/godot-mcp", "godot-mcp"]`, or run it without uv:
+`"command": "python3", "args": ["-m", "godot_mcp"]` with the clone on `PYTHONPATH`.
 
 ## Tools
 
@@ -61,7 +74,7 @@ at the top of `bridge_main.gd`.
 Claude ⇄ (MCP stdio) ⇄ server.py ⇄ (TCP 127.0.0.1:7777) ⇄ bridge_main.gd ⇄ game
 ```
 
-`server.py` launches `godot --path <project> -s bridge_main.gd`. That script
+`godot_mcp/server.py` launches `godot --path <project> -s bridge_main.gd`. That script
 boots a custom SceneTree: it instantiates the project's autoloads and main
 scene, then runs a bridge node that executes step batches in
 `_physics_process` and replies with newline-delimited JSON.

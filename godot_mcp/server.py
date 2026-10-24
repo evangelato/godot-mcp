@@ -10,8 +10,9 @@ Register per game project in its .mcp.json:
     {
       "mcpServers": {
         "godot": {
-          "command": "python3",
-          "args": ["/Users/evan/Coding/godot-mcp/server.py"],
+          "command": "uvx",
+          "args": ["--from", "git+https://github.com/evangelato/godot-mcp",
+                   "godot-mcp"],
           "env": {
             "GODOT_MCP_NOTES": "This game's controls: ... (optional)"
           }
